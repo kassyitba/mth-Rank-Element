@@ -77,14 +77,17 @@ def simulate_protocol(custodians, target_rank, max_iterations=1000, tolerance=1e
     # Establish the initial global search bounds from all custodians.
     global_min = min(custodian.data[0] for custodian in custodians if custodian.data)
     global_max = max(custodian.data[-1] for custodian in custodians if custodian.data)
-    x_lower = global_min
+    x_lower = global_min - 1
     x_upper = global_max
+    n_lower = 0
+    n_upper = sum(len(custodian.data) for custodian in custodians if custodian.data)
     iteration = 0
 
     while iteration < max_iterations:
         iteration += 1
         print(f"\nIteration {iteration}:")
         print(f"  Current search range: ({x_lower}, {x_upper}]")
+        print(f"  Current count in the search range: ({n_lower}, {n_upper}]")
 
         # Each custodian computes its local median for values within the current range.
         local_medians = []
@@ -117,15 +120,19 @@ def simulate_protocol(custodians, target_rank, max_iterations=1000, tolerance=1e
         print(f"  Total count of elements <= P: {global_count}")
 
         # Check if the count matches the target rank.
-        if global_count == target_rank:
+        if global_count == n_upper:
             print(f"\nTarget rank reached. The {target_rank}-th smallest element is approximately {P}")
             return P
-        elif global_count > target_rank:
+        elif global_count >= target_rank:
             x_upper = P
-            print(f"  Global count > target rank. Updating upper bound to P = {P}")
+            n_upper = global_count
+            print(f"  Global count > target rank. Updating upper bound to P = {P} "
+                  f"and n_upper = {global_count}")
         else:
             x_lower = P
-            print(f"  Global count < target rank. Updating lower bound to P = {P}")
+            n_lower = global_count
+            print(f"  Global count < target rank. Updating lower bound to P = {P} "
+                  f"and n_lower = {global_count}")
 
         if abs(x_upper - x_lower) < tolerance:
             approx_value = (x_lower + x_upper) / 2
@@ -180,12 +187,12 @@ for custodian in custodians:
 combined_dataset = []
 for custodian in custodians:
     combined_dataset.extend(custodian.raw_data)
-combined_unique_sorted = sorted(set(combined_dataset))
+combined_unique_sorted = sorted(combined_dataset)
 print("\nCombined Sorted Unique Dataset from All Custodians:")
 print(combined_unique_sorted)
 
 # Define the target rank m (e.g., the 5th smallest element overall).
-target_rank = 4
+target_rank = 7
 
 # Run the protocol simulation.
 result = simulate_protocol(custodians, target_rank)
